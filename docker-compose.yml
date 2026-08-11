@@ -1,0 +1,18 @@
+services:
+  ultra-wiki-mcp:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      WIKI_URL: ${WIKI_URL:-https://wiki.grupoultralinknet.com.br}
+      WIKI_API_TOKEN: ${WIKI_API_TOKEN:?WIKI_API_TOKEN deve ser definido}
+      WIKI_LOCALE: ${WIKI_LOCALE:-pt-br}
+      WIKI_TIMEOUT_MS: ${WIKI_TIMEOUT_MS:-10000}
+      SEARCH_MAX_RESULTS: ${SEARCH_MAX_RESULTS:-20}
+      MCP_API_KEY: ${MCP_API_KEY:?MCP_API_KEY deve ser definido}
+      MCP_BASE_URL: ${MCP_BASE_URL:?MCP_BASE_URL deve ser definido}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MAX_PAGE_CONTENT_BYTES: ${MAX_PAGE_CONTENT_BYTES:-2000000}
+    ports:
+      - "${PORT:-3001}:3001"
