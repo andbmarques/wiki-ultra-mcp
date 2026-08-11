@@ -29,6 +29,7 @@ const environmentSchema = z
     OAUTH_RESOURCE_URL: optionalString(z.url()),
     OAUTH_AUDIENCE: optionalString(z.string().min(1)),
     OAUTH_REQUIRED_SCOPES: z.string().min(1).default("wiki.read"),
+    OAUTH_AUTHORIZATION_SCOPES: optionalString(z.string().min(1)),
     OAUTH_ALLOWED_ALGORITHMS: z.string().min(1).default("RS256"),
     OAUTH_CLOCK_TOLERANCE_SECONDS: integerFromEnvironment(0, 60).default(5),
     OAUTH_RESOURCE_DOCUMENTATION_URL: optionalString(z.url()),
@@ -52,7 +53,9 @@ const environmentSchema = z
     }
 
     if (environment.MCP_AUTH_MODE === "oauth") {
-      for (const field of ["OAUTH_ISSUER_URL", "OAUTH_JWKS_URL", "OAUTH_RESOURCE_URL"] as const) {
+      for (const field of [
+        "OAUTH_ISSUER_URL", "OAUTH_JWKS_URL", "OAUTH_RESOURCE_URL", "OAUTH_AUTHORIZATION_SCOPES",
+      ] as const) {
         if (environment[field] === undefined) {
           context.addIssue({ code: "custom", path: [field], message: `${field} é obrigatório` });
         }

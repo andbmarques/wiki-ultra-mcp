@@ -42,7 +42,7 @@ export function createHttpApp(
   }
 
   app.post("/mcp", authenticate, async (request: Request, response: Response) => {
-    const server = createWikiMcpServer(pages, wikiSearch, logger, authentication.requiredScopes);
+    const server = createWikiMcpServer(pages, wikiSearch, logger, authentication.authorizationScopes);
     const transport = new StreamableHTTPServerTransport({});
 
     try {

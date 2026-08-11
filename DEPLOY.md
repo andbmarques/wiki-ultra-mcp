@@ -41,7 +41,7 @@ Para implantação:
 
 - servidor Linux ou plataforma de containers;
 - Docker Engine e Docker Compose;
-- DNS para um domínio como `mcp-wiki.grupoultra.com.br`;
+- DNS para `wikimcp.grupoultralinknet.com.br`;
 - certificado HTTPS válido;
 - saída HTTPS do MCP para a Wiki;
 - acesso administrativo ao ChatGPT Business, Enterprise ou Edu;
@@ -272,7 +272,7 @@ Existem duas opções seguras.
 Use quando o MCP puder ser publicado na internet com autenticação forte:
 
 ```text
-https://mcp-wiki.grupoultra.com.br/mcp
+https://wikimcp.grupoultralinknet.com.br/mcp
 ```
 
 Requisitos:
@@ -310,12 +310,13 @@ WIKI_API_TOKEN=<segredo-wiki-somente-leitura>
 WIKI_LOCALE=pt-br
 WIKI_TIMEOUT_MS=10000
 SEARCH_MAX_RESULTS=20
-MCP_BASE_URL=https://mcp-wiki.grupoultra.com.br
+MCP_BASE_URL=https://wikimcp.grupoultralinknet.com.br
 MCP_AUTH_MODE=oauth
 OAUTH_ISSUER_URL=https://login.exemplo.com/tenant
 OAUTH_JWKS_URL=https://login.exemplo.com/tenant/.well-known/jwks.json
-OAUTH_RESOURCE_URL=https://mcp-wiki.grupoultra.com.br/mcp
-OAUTH_AUDIENCE=https://mcp-wiki.grupoultra.com.br/mcp
+OAUTH_RESOURCE_URL=https://wikimcp.grupoultralinknet.com.br/mcp
+OAUTH_AUDIENCE=https://wikimcp.grupoultralinknet.com.br/mcp
+OAUTH_AUTHORIZATION_SCOPES=https://wikimcp.grupoultralinknet.com.br/mcp/wiki.read
 OAUTH_REQUIRED_SCOPES=wiki.read
 OAUTH_ALLOWED_ALGORITHMS=RS256
 OAUTH_CLOCK_TOLERANCE_SECONDS=5
@@ -330,7 +331,7 @@ O projeto exige `MCP_AUTH_MODE=oauth`, issuer, JWKS e resource HTTPS quando
 Exemplo conceitual com Caddy:
 
 ```caddyfile
-mcp-wiki.grupoultra.com.br {
+wikimcp.grupoultralinknet.com.br {
     encode zstd gzip
     reverse_proxy ultra-wiki-mcp:3001
 }
@@ -369,7 +370,7 @@ docker compose logs --tail 100 ultra-wiki-mcp
 Valide externamente:
 
 ```powershell
-Invoke-RestMethod https://mcp-wiki.grupoultra.com.br/health
+Invoke-RestMethod https://wikimcp.grupoultralinknet.com.br/health
 ```
 
 Depois conecte o MCP Inspector à URL HTTPS e repita os testes de `search_pages`
@@ -391,8 +392,9 @@ Antes de criar o app, configure o Authorization Server corporativo:
 
 1. habilite Authorization Code com PKCE `S256`;
 2. publique discovery OAuth/OIDC e JWKS por HTTPS;
-3. registre o recurso `https://mcp-wiki.grupoultra.com.br/mcp`;
-4. crie/delegue o escopo `wiki.read`;
+3. registre o Application ID URI `https://wikimcp.grupoultralinknet.com.br/mcp`;
+4. exponha e delegue o scope
+   `https://wikimcp.grupoultralinknet.com.br/mcp/wiki.read`;
 5. faça o access token JWT conter `iss`, `aud`, `exp`, identificação do cliente
    (`client_id`, `azp` ou equivalente) e `scope`/`scp`;
 6. habilite CIMD, Dynamic Client Registration ou prepare um cliente OAuth
@@ -405,14 +407,15 @@ Antes de criar o app, configure o Authorization Server corporativo:
 Valide publicamente antes do cadastro:
 
 ```powershell
-Invoke-RestMethod https://mcp-wiki.grupoultra.com.br/.well-known/oauth-protected-resource/mcp
-curl.exe -i https://mcp-wiki.grupoultra.com.br/mcp
+Invoke-RestMethod https://wikimcp.grupoultralinknet.com.br/.well-known/oauth-protected-resource/mcp
+curl.exe -i https://wikimcp.grupoultralinknet.com.br/mcp
 ```
 
 O primeiro comando deve retornar `resource`, `authorization_servers` e
-`scopes_supported`. O segundo deve retornar HTTP 401 e um header
-`WWW-Authenticate` com `resource_metadata`. Um JWT válido sem `wiki.read` deve
-retornar HTTP 403.
+`scopes_supported`, incluindo o scope totalmente qualificado. O segundo deve
+retornar HTTP 401 e um header `WWW-Authenticate` cujo parâmetro `scope` também
+seja totalmente qualificado. O access token do Entra continua sendo validado
+por `scp=wiki.read`; um JWT válido sem esse valor deve retornar HTTP 403.
 
 Não escolha **No authentication**. Bearer estático, Client Credentials/M2M e a
 credencial de serviço do Wiki.js não autenticam o usuário do ChatGPT.
@@ -447,7 +450,7 @@ Para Enterprise/Edu:
 3. Informe a URL:
 
    ```text
-   https://mcp-wiki.grupoultra.com.br/mcp
+   https://wikimcp.grupoultralinknet.com.br/mcp
    ```
 
 4. Escolha OAuth e configure o cliente conforme o Authorization Server.

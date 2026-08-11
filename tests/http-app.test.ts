@@ -11,6 +11,8 @@ import { testConfig } from "./helpers.js";
 const unusedPages = {} as WikiPages;
 const unusedSearch = {} as WikiSearch;
 const silentLogger = pino({ level: "silent" });
+const entraResource = "https://wikimcp.grupoultralinknet.com.br/mcp";
+const entraAuthorizationScope = `${entraResource}/wiki.read`;
 
 describe("HTTP app", () => {
   it("expõe healthcheck sem dados sensíveis", async () => {
@@ -39,16 +41,17 @@ describe("HTTP app", () => {
         clientId: "chatgpt-client",
         scopes: token === "valid-token" ? ["wiki.read"] : [],
         expiresAt: Math.floor(Date.now() / 1000) + 300,
-        resource: new URL("https://mcp.example.com/mcp"),
+        resource: new URL(entraResource),
       }),
     };
     const config = testConfig({
       MCP_AUTH_MODE: "oauth",
       MCP_API_KEY: undefined,
-      MCP_BASE_URL: "https://mcp.example.com",
+      MCP_BASE_URL: "https://wikimcp.grupoultralinknet.com.br",
       OAUTH_ISSUER_URL: "https://login.example.com",
       OAUTH_JWKS_URL: "https://login.example.com/jwks",
-      OAUTH_RESOURCE_URL: "https://mcp.example.com/mcp",
+      OAUTH_RESOURCE_URL: entraResource,
+      OAUTH_AUTHORIZATION_SCOPES: entraAuthorizationScope,
     });
     const app = createHttpApp(config, unusedPages, unusedSearch, silentLogger, verifier);
 
@@ -59,13 +62,20 @@ describe("HTTP app", () => {
 
     expect(metadata.status).toBe(200);
     expect(metadata.body).toMatchObject({
-      resource: "https://mcp.example.com/mcp",
+      resource: entraResource,
       authorization_servers: ["https://login.example.com"],
-      scopes_supported: ["wiki.read"],
+      scopes_supported: [entraAuthorizationScope],
     });
     expect(unauthorized.status).toBe(401);
     expect(unauthorized.header["www-authenticate"]).toContain("resource_metadata=");
+    expect(unauthorized.header["www-authenticate"]).toContain(
+      `scope="${entraAuthorizationScope}"`,
+    );
+    expect(unauthorized.header["www-authenticate"]).not.toContain('scope="wiki.read"');
     expect(insufficient.status).toBe(403);
+    expect(insufficient.header["www-authenticate"]).toContain(
+      `scope="${entraAuthorizationScope}"`,
+    );
     expect(authorized.status).toBe(405);
   });
 });

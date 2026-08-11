@@ -119,8 +119,11 @@ JWKS do provedor corporativo e exige o escopo `wiki.read`. O provedor externo
 (por exemplo, Entra ID, Auth0 ou Keycloak) continua responsável por login,
 consentimento, Authorization Code + PKCE e emissão/renovação de tokens.
 
-Produção exige `MCP_AUTH_MODE=oauth`, `OAUTH_ISSUER_URL`, `OAUTH_JWKS_URL` e
-`OAUTH_RESOURCE_URL`. Veja a configuração completa em
+Produção exige `MCP_AUTH_MODE=oauth`, `OAUTH_ISSUER_URL`, `OAUTH_JWKS_URL`,
+`OAUTH_RESOURCE_URL` e `OAUTH_AUTHORIZATION_SCOPES`. Para Microsoft Entra ID,
+este último contém o scope totalmente qualificado solicitado pelo ChatGPT;
+`OAUTH_REQUIRED_SCOPES` continua contendo o valor curto esperado no claim `scp`
+do JWT. Veja a configuração completa em
 [`docs/oauth.md`](docs/oauth.md) e o roteiro operacional em [`DEPLOY.md`](DEPLOY.md).
 
 A documentação oficial da OpenAI descreve Remote MCP Servers por `server_url` e

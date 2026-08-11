@@ -10,8 +10,9 @@ senhas, sessões ou endpoint de autorização dentro deste projeto.
    `WWW-Authenticate` apontando para o Protected Resource Metadata.
 2. O ChatGPT lê `/.well-known/oauth-protected-resource/mcp`, descobre o issuer e
    inicia Authorization Code com PKCE `S256` no provedor corporativo.
-3. O provedor autentica o usuário e emite um access token JWT destinado a
-   `OAUTH_RESOURCE_URL`/`OAUTH_AUDIENCE` com o escopo `wiki.read`.
+3. O ChatGPT solicita ao provedor o scope totalmente qualificado configurado em
+   `OAUTH_AUTHORIZATION_SCOPES`. O provedor autentica o usuário e emite um
+   access token JWT destinado a `OAUTH_RESOURCE_URL`/`OAUTH_AUDIENCE`.
 4. O ChatGPT envia o JWT em `Authorization: Bearer ...`.
 5. O MCP valida assinatura via JWKS, algoritmo, `iss`, `aud`, `exp` e escopos.
    Somente depois disso uma tool pode consultar a Wiki.
@@ -36,17 +37,26 @@ opacos, será necessário adicionar introspecção autenticada em uma evolução
 ```env
 NODE_ENV=production
 MCP_AUTH_MODE=oauth
-MCP_BASE_URL=https://mcp-wiki.grupoultra.com.br
+MCP_BASE_URL=https://wikimcp.grupoultralinknet.com.br
 
 OAUTH_ISSUER_URL=https://login.exemplo.com/tenant
 OAUTH_JWKS_URL=https://login.exemplo.com/tenant/.well-known/jwks.json
-OAUTH_RESOURCE_URL=https://mcp-wiki.grupoultra.com.br/mcp
-OAUTH_AUDIENCE=https://mcp-wiki.grupoultra.com.br/mcp
+OAUTH_RESOURCE_URL=https://wikimcp.grupoultralinknet.com.br/mcp
+OAUTH_AUDIENCE=https://wikimcp.grupoultralinknet.com.br/mcp
+OAUTH_AUTHORIZATION_SCOPES=https://wikimcp.grupoultralinknet.com.br/mcp/wiki.read
 OAUTH_REQUIRED_SCOPES=wiki.read
 OAUTH_ALLOWED_ALGORITHMS=RS256
 OAUTH_CLOCK_TOLERANCE_SECONDS=5
-OAUTH_RESOURCE_DOCUMENTATION_URL=https://mcp-wiki.grupoultra.com.br/docs
+OAUTH_RESOURCE_DOCUMENTATION_URL=https://wikimcp.grupoultralinknet.com.br/docs
 ```
+
+`OAUTH_AUTHORIZATION_SCOPES` contém os scopes anunciados ao ChatGPT e
+solicitados ao Authorization Server. No Entra ID, use o nome totalmente
+qualificado (`Application ID URI` + `/` + nome do scope).
+
+`OAUTH_REQUIRED_SCOPES` é independente e contém os valores esperados dentro dos
+claims `scp`/`scope` do access token. Para o Entra, ele permanece `wiki.read`.
+Não use o scope qualificado nesse campo.
 
 `OAUTH_ISSUER_URL` deve ser exatamente igual ao claim `iss`. Se
 `OAUTH_AUDIENCE` ficar vazio, o servidor espera `OAUTH_RESOURCE_URL` no claim
@@ -60,8 +70,10 @@ GET /.well-known/oauth-protected-resource
 GET /.well-known/oauth-protected-resource/mcp
 ```
 
-Os endpoints de metadata não contêm segredos. `/mcp` permanece protegido e
-responde 403 quando o JWT é válido, mas não possui todos os escopos requeridos.
+Os endpoints de metadata não contêm segredos. `scopes_supported` e o parâmetro
+`scope` de `WWW-Authenticate` usam `OAUTH_AUTHORIZATION_SCOPES`. `/mcp`
+permanece protegido e responde 403 quando o JWT é válido, mas seu claim
+`scp`/`scope` não possui todos os valores de `OAUTH_REQUIRED_SCOPES`.
 
 ## Cadastro do cliente ChatGPT
 

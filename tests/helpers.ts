@@ -14,6 +14,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     MCP_API_KEY: "mcp-test-token-123",
     MCP_BASE_URL: "http://localhost:3001",
     OAUTH_REQUIRED_SCOPES: "wiki.read",
+    OAUTH_AUTHORIZATION_SCOPES: undefined,
     OAUTH_ALLOWED_ALGORITHMS: "RS256",
     OAUTH_CLOCK_TOLERANCE_SECONDS: 5,
     LOG_LEVEL: "silent",

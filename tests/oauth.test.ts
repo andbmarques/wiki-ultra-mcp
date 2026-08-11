@@ -25,7 +25,7 @@ beforeAll(async () => {
 });
 
 async function token(overrides: Record<string, unknown> = {}): Promise<string> {
-  return new SignJWT({ scope: "wiki.read profile", client_id: "chatgpt-client", ...overrides })
+  return new SignJWT({ scp: "wiki.read", client_id: "chatgpt-client", ...overrides })
     .setProtectedHeader({ alg: "RS256", kid: "test-key" })
     .setIssuer(issuer)
     .setAudience(audience)
@@ -38,7 +38,7 @@ describe("JwtTokenVerifier", () => {
   it("valida assinatura, emissor, audience, exp e scopes", async () => {
     const auth = await verifier.verifyAccessToken(await token());
     expect(auth.clientId).toBe("chatgpt-client");
-    expect(auth.scopes).toEqual(["wiki.read", "profile"]);
+    expect(auth.scopes).toEqual(["wiki.read"]);
     expect(auth.resource?.href).toBe(audience);
   });
 
