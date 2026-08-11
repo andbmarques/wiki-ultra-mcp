@@ -6,7 +6,12 @@ import { safeWikiErrorMessage } from "./safe-error.js";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-export function registerGetPageTool(server: McpServer, pages: WikiPages, logger: Logger): void {
+export function registerGetPageTool(
+  server: McpServer,
+  pages: WikiPages,
+  logger: Logger,
+  requiredScopes: string[] = [],
+): void {
   server.registerTool(
     "get_page",
     {
@@ -21,6 +26,9 @@ export function registerGetPageTool(server: McpServer, pages: WikiPages, logger:
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false,
+      },
+      _meta: requiredScopes.length === 0 ? undefined : {
+        securitySchemes: [{ type: "oauth2", scopes: requiredScopes }],
       },
     },
     async ({ path, locale }) => {

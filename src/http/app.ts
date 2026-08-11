@@ -2,10 +2,11 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Express, Request, Response } from "express";
 import type { Logger } from "pino";
+import type { OAuthTokenVerifier } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 
 import type { AppConfig } from "../config/env.js";
 import { createWikiMcpServer } from "../mcp/server.js";
-import { requireMcpApiKey } from "../security/auth.js";
+import { createMcpAuthentication } from "../security/auth.js";
 import type { WikiPages } from "../wikijs/pages.js";
 import type { WikiSearch } from "../wikijs/search.js";
 
@@ -20,20 +21,28 @@ export function createHttpApp(
   pages: WikiPages,
   wikiSearch: WikiSearch,
   logger: Logger,
+  oauthVerifier?: OAuthTokenVerifier,
 ): Express {
   const publicHost = new URL(config.MCP_BASE_URL).hostname;
   const app = createMcpExpressApp({
     host: "0.0.0.0",
     allowedHosts: [publicHost, "localhost", "127.0.0.1"],
   });
-  const authenticate = requireMcpApiKey(config.MCP_API_KEY);
+  const authentication = createMcpAuthentication(config, oauthVerifier);
+  const authenticate = authentication.authenticate;
 
   app.get("/health", (_request, response) => {
     response.json({ status: "ok" });
   });
 
+  if (config.MCP_AUTH_MODE === "oauth") {
+    const sendMetadata = (_request: Request, response: Response) => response.json(authentication.metadata);
+    app.get("/.well-known/oauth-protected-resource", sendMetadata);
+    app.get(authentication.metadataPath, sendMetadata);
+  }
+
   app.post("/mcp", authenticate, async (request: Request, response: Response) => {
-    const server = createWikiMcpServer(pages, wikiSearch, logger);
+    const server = createWikiMcpServer(pages, wikiSearch, logger, authentication.requiredScopes);
     const transport = new StreamableHTTPServerTransport({});
 
     try {

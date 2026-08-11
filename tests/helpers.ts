@@ -10,8 +10,12 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     WIKI_TIMEOUT_MS: 1000,
     SEARCH_MAX_RESULTS: 20,
     MAX_PAGE_CONTENT_BYTES: 20_000,
+    MCP_AUTH_MODE: "api-key",
     MCP_API_KEY: "mcp-test-token-123",
     MCP_BASE_URL: "http://localhost:3001",
+    OAUTH_REQUIRED_SCOPES: "wiki.read",
+    OAUTH_ALLOWED_ALGORITHMS: "RS256",
+    OAUTH_CLOCK_TOLERANCE_SECONDS: 5,
     LOG_LEVEL: "silent",
     ...overrides,
   };

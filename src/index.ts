@@ -10,10 +10,6 @@ import { WikiSearch } from "./wikijs/search.js";
 const config = loadConfig();
 const logger = createLogger(config);
 
-if (config.MCP_API_KEY === undefined) {
-  logger.warn({ event: "startup", message: "Endpoint /mcp sem autenticação em ambiente não produtivo." });
-}
-
 const wikiClient = new WikiClient({
   baseUrl: config.WIKI_URL,
   apiToken: config.WIKI_API_TOKEN,
@@ -30,6 +26,7 @@ const httpServer = app.listen(config.PORT, "0.0.0.0", () => {
     status: "ready",
     port: config.PORT,
     mcpPath: "/mcp",
+    authMode: config.MCP_AUTH_MODE,
   });
 });
 

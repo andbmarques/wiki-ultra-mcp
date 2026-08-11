@@ -10,6 +10,7 @@ export function createWikiMcpServer(
   pages: WikiPages,
   wikiSearch: WikiSearch,
   logger: Logger,
+  requiredScopes: string[] = [],
 ): McpServer {
   const server = new McpServer({
     name: "ultra-wiki-mcp",
@@ -17,7 +18,7 @@ export function createWikiMcpServer(
     websiteUrl: "https://wiki.grupoultralinknet.com.br",
   });
 
-  registerGetPageTool(server, pages, logger);
-  registerSearchPagesTool(server, wikiSearch, logger);
+  registerGetPageTool(server, pages, logger, requiredScopes);
+  registerSearchPagesTool(server, wikiSearch, logger, requiredScopes);
   return server;
 }

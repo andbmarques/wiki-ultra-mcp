@@ -9,6 +9,7 @@ export function registerSearchPagesTool(
   server: McpServer,
   wikiSearch: WikiSearch,
   logger: Logger,
+  requiredScopes: string[] = [],
 ): void {
   server.registerTool(
     "search_pages",
@@ -24,6 +25,9 @@ export function registerSearchPagesTool(
         destructiveHint: false,
         idempotentHint: true,
         openWorldHint: false,
+      },
+      _meta: requiredScopes.length === 0 ? undefined : {
+        securitySchemes: [{ type: "oauth2", scopes: requiredScopes }],
       },
     },
     async ({ query, limit, locale }) => {

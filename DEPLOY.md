@@ -13,7 +13,8 @@ O projeto já fornece:
 - conteúdo original e metadados da Wiki;
 - healthcheck em `GET /health`;
 - autenticação da Wiki com `WIKI_API_TOKEN`;
-- proteção do endpoint MCP com `MCP_API_KEY`;
+- OAuth 2.1 em produção com descoberta, JWT/JWKS e escopo `wiki.read`;
+- `MCP_API_KEY` somente para testes locais com o Inspector;
 - testes, build TypeScript, Dockerfile e Docker Compose.
 
 O que ainda depende de ação externa:
@@ -23,8 +24,8 @@ O que ainda depende de ação externa:
 3. confirmar o build exato do Wiki.js com um usuário autorizado ou no painel;
 4. publicar o MCP por HTTPS ou usar um túnel MCP seguro;
 5. cadastrar e testar o app no ChatGPT Workspace;
-6. implementar OAuth antes de uma liberação ampla, caso o Workspace não aceite
-   o Bearer estático usado pelo piloto.
+6. configurar um Authorization Server/OIDC corporativo compatível com o fluxo
+   Authorization Code + PKCE utilizado pelo ChatGPT.
 
 ## 2. Pré-requisitos
 
@@ -93,6 +94,7 @@ WIKI_LOCALE=pt-br
 WIKI_TIMEOUT_MS=10000
 SEARCH_MAX_RESULTS=20
 
+MCP_AUTH_MODE=api-key
 MCP_API_KEY=COLOQUE_UMA_CHAVE_ALEATORIA_LONGA_AQUI
 MCP_BASE_URL=http://localhost:3001
 
@@ -308,13 +310,22 @@ WIKI_API_TOKEN=<segredo-wiki-somente-leitura>
 WIKI_LOCALE=pt-br
 WIKI_TIMEOUT_MS=10000
 SEARCH_MAX_RESULTS=20
-MCP_API_KEY=<segredo-mcp>
 MCP_BASE_URL=https://mcp-wiki.grupoultra.com.br
+MCP_AUTH_MODE=oauth
+OAUTH_ISSUER_URL=https://login.exemplo.com/tenant
+OAUTH_JWKS_URL=https://login.exemplo.com/tenant/.well-known/jwks.json
+OAUTH_RESOURCE_URL=https://mcp-wiki.grupoultra.com.br/mcp
+OAUTH_AUDIENCE=https://mcp-wiki.grupoultra.com.br/mcp
+OAUTH_REQUIRED_SCOPES=wiki.read
+OAUTH_ALLOWED_ALGORITHMS=RS256
+OAUTH_CLOCK_TOLERANCE_SECONDS=5
 LOG_LEVEL=info
 MAX_PAGE_CONTENT_BYTES=2000000
 ```
 
-O projeto exige `MCP_API_KEY` quando `NODE_ENV=production`.
+O projeto exige `MCP_AUTH_MODE=oauth`, issuer, JWKS e resource HTTPS quando
+`NODE_ENV=production`. A configuração detalhada está em
+[`docs/oauth.md`](docs/oauth.md).
 
 Exemplo conceitual com Caddy:
 
@@ -374,25 +385,37 @@ Verifique também:
 - conectividade do container com a Wiki;
 - reinício automático após reiniciar o host.
 
-## 13. Autenticação do ChatGPT Workspace
+## 13. Configurar OAuth no ChatGPT Workspace
 
-O código atual aceita um Bearer estático em `MCP_API_KEY`. Ele é adequado para
-MCP Inspector, smoke tests e um piloto no qual a interface do Workspace aceite
-esse mecanismo.
+Antes de criar o app, configure o Authorization Server corporativo:
 
-Para produção ampla, a recomendação é implementar OAuth/OIDC corporativo na
-frente do MCP ou no próprio servidor. Não publique o serviço sem autenticação
-apenas para facilitar o cadastro no ChatGPT.
+1. habilite Authorization Code com PKCE `S256`;
+2. publique discovery OAuth/OIDC e JWKS por HTTPS;
+3. registre o recurso `https://mcp-wiki.grupoultra.com.br/mcp`;
+4. crie/delegue o escopo `wiki.read`;
+5. faça o access token JWT conter `iss`, `aud`, `exp`, identificação do cliente
+   (`client_id`, `azp` ou equivalente) e `scope`/`scp`;
+6. habilite CIMD, Dynamic Client Registration ou prepare um cliente OAuth
+   previamente cadastrado, conforme o mecanismo aceito pelo Workspace;
+7. copie da interface do ChatGPT a redirect URI específica do app e registre-a
+   exatamente no provedor. O formato é
+   `https://chatgpt.com/connector/oauth/{callback_id}`;
+8. configure refresh tokens/offline access conforme a política corporativa.
 
-Antes de criar o app no Workspace:
+Valide publicamente antes do cadastro:
 
-1. Abra a tela de criação do app.
-2. Confira os mecanismos de autenticação disponíveis no seu plano/tenant.
-3. Se Bearer/token estático estiver disponível, use `MCP_API_KEY` no piloto.
-4. Se o cadastro aceitar apenas OAuth ou nenhuma autenticação, implemente OAuth;
-   não selecione **No authentication** para um MCP que lê documentação interna.
-5. Em OAuth/OIDC, configure refresh tokens. A orientação atual da OpenAI destaca
-   o escopo `offline_access` ou equivalente para manter a conectividade.
+```powershell
+Invoke-RestMethod https://mcp-wiki.grupoultra.com.br/.well-known/oauth-protected-resource/mcp
+curl.exe -i https://mcp-wiki.grupoultra.com.br/mcp
+```
+
+O primeiro comando deve retornar `resource`, `authorization_servers` e
+`scopes_supported`. O segundo deve retornar HTTP 401 e um header
+`WWW-Authenticate` com `resource_metadata`. Um JWT válido sem `wiki.read` deve
+retornar HTTP 403.
+
+Não escolha **No authentication**. Bearer estático, Client Credentials/M2M e a
+credencial de serviço do Wiki.js não autenticam o usuário do ChatGPT.
 
 ## 14. Cadastrar o MCP no ChatGPT Workspace
 
@@ -427,7 +450,7 @@ Para Enterprise/Edu:
    https://mcp-wiki.grupoultra.com.br/mcp
    ```
 
-4. Escolha e configure o mecanismo de autenticação.
+4. Escolha OAuth e configure o cliente conforme o Authorization Server.
 5. Execute **Scan Tools**.
 6. Confirme que `search_pages` e `get_page` foram descobertas como read-only.
 7. Conclua a criação.
@@ -491,7 +514,7 @@ Depois que busca e leitura funcionarem com páginas reais, siga esta ordem.
 
 ### Etapa 2 — endurecimento para produção
 
-- implementar OAuth/OIDC corporativo;
+- integrar o issuer OAuth já suportado ao diretório corporativo e revisar claims;
 - adicionar rate limiting por identidade;
 - criar `/ready` para conectividade controlada com a Wiki;
 - adicionar métricas de latência, erro e volume;
@@ -541,7 +564,7 @@ Para retirar o MCP do ar sem alterar a Wiki:
    docker compose stop ultra-wiki-mcp
    ```
 
-3. Revogue `MCP_API_KEY` ou as credenciais OAuth comprometidas.
+3. Revogue as sessões/tokens OAuth ou o cliente comprometido no Authorization Server.
 4. Se necessário, revogue o token de serviço no Wiki.js.
 5. Preserve os logs de auditoria conforme a política da empresa.
 6. Corrija, teste e publique novamente.
@@ -567,9 +590,10 @@ containers e o banco de dados da Wiki.
 
 ### O Inspector recebe HTTP 401
 
-- envie `Authorization: Bearer <MCP_API_KEY>`;
-- confirme que não há espaços ou quebras de linha no segredo;
-- confirme que o proxy preserva o header `Authorization`.
+- em desenvolvimento, envie `Authorization: Bearer <MCP_API_KEY>`;
+- em produção, confirme discovery, audience, issuer, expiração e `wiki.read`;
+- confirme que o proxy preserva o header `Authorization` e
+  `WWW-Authenticate`.
 
 ### O ChatGPT não consegue executar Scan Tools
 

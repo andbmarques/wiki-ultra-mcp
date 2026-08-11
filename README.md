@@ -14,7 +14,8 @@ permanece a fonte da verdade; o MCP apenas fornece uma camada segura de acesso.
 - `get_page`: leitura por `path` e `locale` via GraphQL `pages.singleByPath`.
 - `GET /health`: healthcheck sem consulta nem exposição de credenciais.
 - Autenticação de saída para Wiki.js com token Bearer somente leitura.
-- Autenticação de entrada do MCP com Bearer (`MCP_API_KEY`), obrigatória em produção.
+- OAuth 2.1 Resource Server em produção, com descoberta RFC 9728, JWT/JWKS e escopo.
+- Bearer estático (`MCP_API_KEY`) restrito ao desenvolvimento e MCP Inspector.
 - Inputs validados, timeout e limites de payload.
 - Logs estruturados sem token ou conteúdo integral da página.
 
@@ -40,6 +41,7 @@ Preencha no `.env`:
 
 ```env
 WIKI_API_TOKEN=token-da-conta-de-servico
+MCP_AUTH_MODE=api-key
 MCP_API_KEY=uma-chave-longa-para-proteger-o-endpoint
 ```
 
@@ -95,7 +97,7 @@ são retornados pelo MCP.
 
 ## Docker
 
-Defina `WIKI_API_TOKEN`, `MCP_API_KEY` e a URL pública em `MCP_BASE_URL`, então:
+Defina `WIKI_API_TOKEN`, as variáveis OAuth e a URL pública em `MCP_BASE_URL`, então:
 
 ```powershell
 docker compose up --build
@@ -111,11 +113,15 @@ Publique o serviço atrás de HTTPS e configure como URL remota:
 https://seu-dominio.example.com/mcp
 ```
 
-O transporte segue Streamable HTTP. O administrador deverá cadastrar a conexão
-no Workspace e fornecer a credencial de acesso. Para um piloto controlado, o
-servidor aceita Bearer estático; antes de uma distribuição ampla, recomenda-se
-substituir essa autenticação por OAuth corporativo, mantendo a conta Wiki.js
-isolada no servidor.
+O transporte segue Streamable HTTP e o serviço atua como OAuth 2.1 Resource
+Server. Ele publica Protected Resource Metadata, valida access tokens JWT pelo
+JWKS do provedor corporativo e exige o escopo `wiki.read`. O provedor externo
+(por exemplo, Entra ID, Auth0 ou Keycloak) continua responsável por login,
+consentimento, Authorization Code + PKCE e emissão/renovação de tokens.
+
+Produção exige `MCP_AUTH_MODE=oauth`, `OAUTH_ISSUER_URL`, `OAUTH_JWKS_URL` e
+`OAUTH_RESOURCE_URL`. Veja a configuração completa em
+[`docs/oauth.md`](docs/oauth.md) e o roteiro operacional em [`DEPLOY.md`](DEPLOY.md).
 
 A documentação oficial da OpenAI descreve Remote MCP Servers por `server_url` e
 alerta para limitar tools e revisar os dados compartilhados:
@@ -142,4 +148,5 @@ Workspace está em [`DEPLOY.md`](DEPLOY.md).
 - Não registre cabeçalhos `Authorization` nem conteúdo integral das páginas.
 - Não conceda escrita à conta de serviço desta versão.
 - Não exponha o endpoint MCP sem autenticação em produção.
+- Não reutilize `WIKI_API_TOKEN` como token OAuth nem envie esse segredo ao ChatGPT.
 - Não acesse o PostgreSQL diretamente.
