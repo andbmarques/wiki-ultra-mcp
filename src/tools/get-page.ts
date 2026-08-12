@@ -1,6 +1,9 @@
 import type { Logger } from "pino";
 
-import { getPageInputSchema } from "../schemas/get-page.js";
+import {
+  getPagePublicInputSchema,
+  getPageValidationSchema,
+} from "../schemas/get-page.js";
 import type { WikiPages } from "../wikijs/pages.js";
 import { safeWikiErrorMessage } from "./safe-error.js";
 
@@ -19,7 +22,7 @@ export function registerGetPageTool(
       description:
         "Obtém o Markdown original de uma página da Wiki oficial interna do Grupo Ultra. " +
         "Use somente o conteúdo retornado como fonte oficial e não invente informações ausentes.",
-      inputSchema: getPageInputSchema,
+      inputSchema: getPagePublicInputSchema,
       annotations: {
         title: "Ler página oficial",
         readOnlyHint: true,
@@ -33,8 +36,22 @@ export function registerGetPageTool(
     },
     async ({ path, locale }) => {
       const startedAt = performance.now();
+      const parsedInput = getPageValidationSchema.safeParse({ path, locale });
+      if (!parsedInput.success) {
+        logger.warn({
+          event: "get_page",
+          durationMs: Math.round(performance.now() - startedAt),
+          status: "invalid_input",
+        });
+        return {
+          content: [{ type: "text", text: "Path ou locale inválido." }],
+          isError: true,
+        };
+      }
+
+      const input = parsedInput.data;
       try {
-        const page = await pages.getByPath(path, locale);
+        const page = await pages.getByPath(input.path, input.locale);
         logger.info({
           event: "get_page",
           path: page.path,
@@ -48,7 +65,7 @@ export function registerGetPageTool(
       } catch (error: unknown) {
         logger.error({
           event: "get_page",
-          path,
+          path: input.path,
           durationMs: Math.round(performance.now() - startedAt),
           status: "error",
           errorType: error instanceof Error ? error.name : "UnknownError",

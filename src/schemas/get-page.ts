@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const getPagePublicInputSchema = {
+  path: z
+    .string()
+    .describe("Caminho da página na Wiki oficial, por exemplo /procedimento-admissao"),
+  locale: z.string().optional().describe("Locale da página; por padrão, pt-br"),
+};
+
 export const getPageInputSchema = {
   path: z
     .string()
@@ -15,3 +22,5 @@ export const getPageInputSchema = {
     .optional()
     .describe("Locale da página; por padrão, pt-br"),
 };
+
+export const getPageValidationSchema = z.object(getPageInputSchema);

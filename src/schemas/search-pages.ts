@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const searchPagesPublicInputSchema = {
+  query: z.string().describe("Texto livre para pesquisar na Wiki oficial do Grupo Ultra"),
+  limit: z
+    .number()
+    .optional()
+    .describe("Quantidade desejada; o servidor aplica seu teto seguro configurado"),
+  locale: z.string().optional().describe("Locale da busca; por padrão, pt-br"),
+};
+
 export const searchPagesInputSchema = {
   query: z
     .string()
@@ -20,3 +29,5 @@ export const searchPagesInputSchema = {
     .optional()
     .describe("Locale da busca; por padrão, pt-br"),
 };
+
+export const searchPagesValidationSchema = z.object(searchPagesInputSchema);

@@ -1,7 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Logger } from "pino";
 
-import { searchPagesInputSchema } from "../schemas/search-pages.js";
+import {
+  searchPagesPublicInputSchema,
+  searchPagesValidationSchema,
+} from "../schemas/search-pages.js";
 import type { WikiSearch } from "../wikijs/search.js";
 import { safeWikiErrorMessage } from "./safe-error.js";
 
@@ -18,7 +21,7 @@ export function registerSearchPagesTool(
       description:
         "Pesquisa páginas da Wiki oficial interna do Grupo Ultra por texto livre. " +
         "Os resultados apontam para a fonte oficial; não invente conteúdo que não esteja na Wiki.",
-      inputSchema: searchPagesInputSchema,
+      inputSchema: searchPagesPublicInputSchema,
       annotations: {
         title: "Pesquisar páginas oficiais",
         readOnlyHint: true,
@@ -32,11 +35,25 @@ export function registerSearchPagesTool(
     },
     async ({ query, limit, locale }) => {
       const startedAt = performance.now();
+      const parsedInput = searchPagesValidationSchema.safeParse({ query, limit, locale });
+      if (!parsedInput.success) {
+        logger.warn({
+          event: "search_pages",
+          durationMs: Math.round(performance.now() - startedAt),
+          status: "invalid_input",
+        });
+        return {
+          content: [{ type: "text", text: "Parâmetros de busca inválidos." }],
+          isError: true,
+        };
+      }
+
+      const input = parsedInput.data;
       try {
-        const response = await wikiSearch.searchPages(query, limit, locale);
+        const response = await wikiSearch.searchPages(input.query, input.limit, input.locale);
         logger.info({
           event: "search_pages",
-          queryLength: query.length,
+          queryLength: input.query.length,
           resultCount: response.returnedCount,
           totalHits: response.totalHits,
           durationMs: Math.round(performance.now() - startedAt),
@@ -49,7 +66,7 @@ export function registerSearchPagesTool(
       } catch (error: unknown) {
         logger.error({
           event: "search_pages",
-          queryLength: query.length,
+          queryLength: input.query.length,
           durationMs: Math.round(performance.now() - startedAt),
           status: "error",
           errorType: error instanceof Error ? error.name : "UnknownError",

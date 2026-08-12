@@ -8,6 +8,58 @@ import type { WikiPages } from "../src/wikijs/pages.js";
 import type { WikiSearch } from "../src/wikijs/search.js";
 
 describe("MCP server", () => {
+  it("publica schemas de input simples e compatíveis em tools/list", async () => {
+    const server = createWikiMcpServer(
+      {} as WikiPages,
+      {} as WikiSearch,
+      pino({ level: "silent" }),
+    );
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    try {
+      const { tools } = await client.listTools();
+      const getPage = tools.find((tool) => tool.name === "get_page");
+      const searchPages = tools.find((tool) => tool.name === "search_pages");
+
+      expect(getPage?.inputSchema).toMatchObject({
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description:
+              "Caminho da página na Wiki oficial, por exemplo /procedimento-admissao",
+          },
+          locale: {
+            type: "string",
+            description: "Locale da página; por padrão, pt-br",
+          },
+        },
+        required: ["path"],
+      });
+      expect(searchPages?.inputSchema).toMatchObject({
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          limit: { type: "number" },
+          locale: { type: "string" },
+        },
+        required: ["query"],
+      });
+
+      for (const tool of [getPage, searchPages]) {
+        const publicSchema = JSON.stringify(tool?.inputSchema);
+        expect(publicSchema).not.toContain("pattern");
+        expect(publicSchema).not.toContain("minLength");
+        expect(publicSchema).not.toContain("maxLength");
+      }
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
   it("descobre e executa get_page com resposta estruturada", async () => {
     const getByPath = vi.fn().mockResolvedValue({
       pageId: 7,
